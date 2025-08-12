@@ -1,20 +1,6 @@
-import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
+import Game from './Game';
 import './App.css';
 
-function Hello() {
-  return (
-    <div>
-      Hello World
-    </div>
-  );
-}
-
 export default function App() {
-  return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Hello />} />
-      </Routes>
-    </Router>
-  );
+  return <Game />;
 }
