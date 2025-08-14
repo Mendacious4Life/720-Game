@@ -8,6 +8,7 @@ import { checkTicketEarned, buyUpgrade as buyUpgradeLogic } from './GameLogic';
 import { upgrades } from './Shop';
 import { PlayerStats, UpgradeLevels } from './types';
 import { ShopUI } from './ShopUI';
+import { audioManager } from './Audio';
 
 const GRAVITY = 0.005;
 const TICKET_THRESHOLD = 1000;
@@ -62,6 +63,7 @@ const Game = () => {
   const buyUpgrade = (upgradeName: string) => {
     const result = buyUpgradeLogic(upgradeName, money, playerStats, upgradeLevels);
     if (result.success) {
+      audioManager.playSound('buyUpgrade');
       setMoney(result.money);
       setPlayerStats(result.playerStats);
       setUpgradeLevels(result.upgradeLevels);
@@ -71,6 +73,7 @@ const Game = () => {
   };
 
   const restartGame = () => {
+    audioManager.stopBuzz();
     setPlayerPosition({ x: 0, y: 0, z: 10, vz: 0, dir: 'right', rotation: 0 });
     setBeePosition({ x: 5, y: 5 });
     setTimer(0);
@@ -108,6 +111,7 @@ const Game = () => {
     timerRef.current = timer;
     const currentGameState = gameStateRef.current;
     if ((currentGameState === 'ramp_park' || currentGameState === 'jump_park') && timer <= 0 && score > 0) {
+      audioManager.stopBuzz();
       setGameState('skate_city');
       setPlayerPosition(prev => ({ ...prev, x: 0, y: 0, z: 10, vz: 0 }));
       setIsBeeActive(false);
@@ -117,10 +121,18 @@ const Game = () => {
   }, [timer, score]);
 
   useEffect(() => {
+    if (isBeeActive && !isBeeActiveRef.current) {
+      audioManager.startBuzz();
+    } else if (!isBeeActive && isBeeActiveRef.current) {
+      audioManager.stopBuzz();
+    }
     isBeeActiveRef.current = isBeeActive;
   }, [isBeeActive]);
 
   useEffect(() => {
+    if (isGameOver && !isGameOverRef.current) {
+      audioManager.stopBuzz();
+    }
     isGameOverRef.current = isGameOver;
   }, [isGameOver]);
 
@@ -185,6 +197,7 @@ const Game = () => {
     }
 
     if (event.code === 'Space' && isGrounded) {
+      audioManager.playSound('jump');
       setPlayerPosition(prev => ({ ...prev, vz: playerStats.jumpVelocity }));
     }
   };
@@ -271,6 +284,7 @@ const Game = () => {
     } else if (!isGrounded) {
       setAirTime(prev => prev + deltaTime);
     } else if (isGrounded && !wasGroundedRef.current) {
+      audioManager.playSound('land');
       const rotationBonus = Math.floor(Math.abs(playerPositionRef.current.rotation) / (2 * Math.PI));
       const newScore = Math.floor(airTime * 10) + rotationBonus * 500;
       setScore(prev => prev + newScore);
