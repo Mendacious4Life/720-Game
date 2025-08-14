@@ -56,7 +56,25 @@ export const skateCityMap = {
     { x: 0, y: -15, width: 8, depth: 2, park: 'ramp_park' },
     { x: 15, y: 0, width: 2, depth: 8, park: 'downhill_park' },
     { x: -15, y: 0, width: 2, depth: 8, park: 'jump_park' },
+    { x: 0, y: 15, width: 8, depth: 2, park: 'slalom_park' },
   ],
+};
+
+export interface SlalomGate {
+  x: number;
+  y: number;
+  width: number;
+}
+
+export const slalomParkMap = {
+  gates: [
+    { x: 0, y: 10, width: 4 },
+    { x: 2, y: 20, width: 4 },
+    { x: -2, y: 30, width: 4 },
+    { x: 0, y: 40, width: 4 },
+    { x: 3, y: 50, width: 4 },
+    { x: -3, y: 60, width: 4 },
+  ] as SlalomGate[],
 };
 
 export interface DownhillSegment {
@@ -217,11 +235,39 @@ const drawJumpPark = (
 };
 
 
+const drawSlalomPark = (
+  context: CanvasRenderingContext2D,
+  toIsometric: ToIsometric,
+  origin: Point,
+  currentGateIndex: number
+) => {
+  drawGrid(context, toIsometric, origin);
+
+  slalomParkMap.gates.forEach((gate, index) => {
+    const pole1X = gate.x - gate.width / 2;
+    const pole2X = gate.x + gate.width / 2;
+
+    const isoPole1 = toIsometric(pole1X, gate.y, 0, origin);
+    const isoPole2 = toIsometric(pole2X, gate.y, 0, origin);
+
+    context.fillStyle = index === currentGateIndex ? '#FFD700' : '#FF0000'; // Gold for next, Red for others
+
+    context.beginPath();
+    context.arc(isoPole1.x, isoPole1.y, 5, 0, 2 * Math.PI);
+    context.fill();
+
+    context.beginPath();
+    context.arc(isoPole2.x, isoPole2.y, 5, 0, 2 * Math.PI);
+    context.fill();
+  });
+};
+
 export const drawMap = (
   context: CanvasRenderingContext2D,
-  gameState: 'skate_city' | 'ramp_park' | 'downhill_park' | 'jump_park',
+  gameState: 'skate_city' | 'ramp_park' | 'downhill_park' | 'jump_park' | 'slalom_park',
   toIsometric: ToIsometric,
-  origin: Point
+  origin: Point,
+  currentGateIndex?: number
 ) => {
   switch (gameState) {
     case 'ramp_park':
@@ -235,6 +281,9 @@ export const drawMap = (
       break;
     case 'jump_park':
       drawJumpPark(context, toIsometric, origin);
+      break;
+    case 'slalom_park':
+      drawSlalomPark(context, toIsometric, origin, currentGateIndex ?? 0);
       break;
   }
 };

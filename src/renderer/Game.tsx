@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { drawMap, ramps, downhillParkMap, jumpParkRamps } from './Map';
+import { drawMap, ramps, downhillParkMap, jumpParkRamps, slalomParkMap } from './Map';
 import { drawPlayer, drawBee, Direction } from './Entities';
 import { toIsometric } from './Isometric';
 import { drawTimer, drawScore, drawTickets, drawGameOver, drawMoney } from './UI';
-import { checkRampCollision, checkPlayerBeeCollision, checkParkEntranceCollision, checkDownhillCollision, checkFinishLineCollision } from './Collision';
+import { checkRampCollision, checkPlayerBeeCollision, checkParkEntranceCollision, checkDownhillCollision, checkFinishLineCollision, checkSlalomGateCollision } from './Collision';
 import { checkTicketEarned, buyUpgrade as buyUpgradeLogic } from './GameLogic';
 import { upgrades } from './Shop';
 import { PlayerStats, UpgradeLevels } from './types';
@@ -13,7 +13,7 @@ import { audioManager } from './Audio';
 const GRAVITY = 0.005;
 const TICKET_THRESHOLD = 1000;
 
-type GameState = 'skate_city' | 'ramp_park' | 'downhill_park' | 'jump_park';
+type GameState = 'skate_city' | 'ramp_park' | 'downhill_park' | 'jump_park' | 'slalom_park';
 
 interface PlayerState {
   x: number;
@@ -31,6 +31,7 @@ const Game = () => {
   const gameStateRef = useRef(gameState);
   const [playerPosition, setPlayerPosition] = useState<PlayerState>({ x: 0, y: 0, z: 10, vz: 0, dir: 'right', rotation: 0 });
   const playerPositionRef = useRef(playerPosition);
+  const prevPlayerPositionRef = useRef(playerPosition);
   const [playerStats, setPlayerStats] = useState<PlayerStats>({
     jumpVelocity: 0.15,
     speed: 0.1,
@@ -55,6 +56,7 @@ const Game = () => {
   const isBeeActiveRef = useRef(isBeeActive);
   const [isGameOver, setIsGameOver] = useState(false);
   const isGameOverRef = useRef(isGameOver);
+  const [currentGateIndex, setCurrentGateIndex] = useState(0);
   const lastTimeRef = useRef<number | null>(null);
   const requestRef = useRef<number | null>(null);
   const beeSpeed = 0.05;
@@ -100,6 +102,7 @@ const Game = () => {
   }, [gameState]);
 
   useEffect(() => {
+    prevPlayerPositionRef.current = playerPositionRef.current;
     playerPositionRef.current = playerPosition;
   }, [playerPosition]);
 
@@ -110,7 +113,7 @@ const Game = () => {
   useEffect(() => {
     timerRef.current = timer;
     const currentGameState = gameStateRef.current;
-    if ((currentGameState === 'ramp_park' || currentGameState === 'jump_park') && timer <= 0 && score > 0) {
+    if ((currentGameState === 'ramp_park' || currentGameState === 'jump_park' || currentGameState === 'slalom_park') && timer <= 0 && score > 0) {
       audioManager.stopBuzz();
       setGameState('skate_city');
       setPlayerPosition(prev => ({ ...prev, x: 0, y: 0, z: 10, vz: 0 }));
@@ -191,6 +194,10 @@ const Game = () => {
         } else if (park === 'downhill_park') {
           setPlayerPosition(prev => ({ ...prev, x: 0, y: -5, z: 20, vz: 0 }));
           setTimer(0);
+        } else if (park === 'slalom_park') {
+          setPlayerPosition(prev => ({ ...prev, x: 0, y: 0, z: 10, vz: 0 }));
+          setCurrentGateIndex(0);
+          setTimer(30);
         }
       }
       return;
@@ -264,6 +271,19 @@ const Game = () => {
         setMoney(prevMoney => prevMoney + Math.floor(score / 10));
         setScore(0);
       }
+    } else if (currentGameState === 'slalom_park') {
+      groundZ = 0; // Flat ground for slalom
+      const nextGate = slalomParkMap.gates[currentGateIndex];
+      if (nextGate) {
+        if (checkSlalomGateCollision(playerPositionRef.current, prevPlayerPositionRef.current, nextGate)) {
+          setScore(prev => prev + 100);
+          setCurrentGateIndex(prev => prev + 1);
+        }
+      } else { // All gates cleared
+        setGameState('skate_city');
+        setMoney(prevMoney => prevMoney + Math.floor(score / 10));
+        setScore(0);
+      }
     }
 
     setPlayerPosition(prev => {
@@ -308,7 +328,7 @@ const Game = () => {
       }
     }
 
-    if (currentGameState === 'ramp_park' || currentGameState === 'jump_park') {
+    if (currentGameState === 'ramp_park' || currentGameState === 'jump_park' || currentGameState === 'slalom_park') {
       const newTime = Math.max(0, timerRef.current - deltaTime / 60);
       setTimer(newTime);
       if (newTime > 0 && newTime < 10 && !isBeeActiveRef.current) {
@@ -323,7 +343,7 @@ const Game = () => {
     if (context && canvas) {
       context.clearRect(0, 0, canvas.width, canvas.height);
       const origin = { x: canvas.width / 2, y: 150 };
-      drawMap(context, currentGameState, toIsometric, origin);
+      drawMap(context, currentGameState, toIsometric, origin, currentGateIndex);
 
       const isoPlayerPos = toIsometric(playerPositionRef.current.x, playerPositionRef.current.y, playerPositionRef.current.z, origin);
       drawPlayer(context, isoPlayerPos, playerPositionRef.current.dir, playerPositionRef.current.rotation);

@@ -1,4 +1,4 @@
-import { Ramp, skateCityMap, downhillParkMap, DownhillSegment } from './Map';
+import { Ramp, skateCityMap, downhillParkMap, DownhillSegment, SlalomGate, slalomParkMap } from './Map';
 
 interface PlayerPosition {
   x: number;
@@ -118,4 +118,20 @@ export const checkParkEntranceCollision = (player: PlayerPosition): string | nul
   }
 
   return null;
+};
+
+export const checkSlalomGateCollision = (
+  currentPlayer: PlayerPosition,
+  previousPlayer: PlayerPosition,
+  gate: SlalomGate
+): boolean => {
+  const crossedY = previousPlayer.y < gate.y && currentPlayer.y >= gate.y;
+  if (!crossedY) {
+    return false;
+  }
+
+  const halfWidth = gate.width / 2;
+  const isWithinX = currentPlayer.x > gate.x - halfWidth && currentPlayer.x < gate.x + halfWidth;
+
+  return isWithinX;
 };
